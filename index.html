@@ -2,57 +2,56 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Scatterpot</title>
+    <title>Scatterplot</title>
     <script type="text/javascript" src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://code.jquery.com/jquery-1.10.0.min.js"></script>
     <link rel="stylesheet" type="text/css" href="styles.css">
     <style></style>
 </head>
 
 <body>
     <div id="container" class="svg-container"></div>
+    <div id="legend" class="legend-container"></div>
     <script>
+
         //------------------------1. PREPARATION------------------------//
+        //-----------------------------SVG------------------------------/
+        var margin = { top: 20, right: 20, bottom: 30, left: 40 },
+            xScale = d3.scaleLinear(),
+            yScale = d3.scaleLinear(),
+            color = d3.scaleOrdinal()
+                .range(["#2B2B2B", "#FA9B22", "#00A3FF", "#9B9B9B", "#FFCD02", "#226EB5", "#894D21", "#44D795", "#FFC6BE", "#CCCCCC"]),
+            theData = undefined,
+            height = undefined,
+            width = undefined
 
-        //-----------------------------SVG------------------------------//
-        const margin = ({ top: 10, right: 10, bottom: 20, left: 40 });
-        const width = 460;
-        const height = 400;
-        const padding = 5;
-        const adj = 30;
-        // we are appending SVG first
-        const svg = d3.select("div#container").append("svg")
-            .attr("preserveAspectRatio", "xMinYMin meet")
-            .attr("viewBox", "-"
-                + adj + " -"
-                + adj + " "
-                + (width + adj * 3) + " "
-                + (height + adj * 3))
-            .style("padding", padding)
-            .style("margin", margin)
-            .classed("svg-content", true);
+        //-----------------------------DRAW-----------------------------//
+        function draw() {
+            var svg = d3.select("div#container").append("svg").style("width", "100%").style("height", "100vh")
+            var lsvg = d3.select("div#legend").append("svg").style("width", "100%").style("height", "100%")
+            var tooltip = tooltip = d3.select("body").append("div")
+                .attr("class", "tooltip")
+                .style("opacity", 0);
+            var g = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
 
-        var tooltip = tooltip = d3.select("body").append("div")
-            .attr("class", "tooltip")
-            .style("opacity", 0);
 
-        const color = d3.scaleOrdinal(d3.schemeCategory10);
+            g.append("g")
+                .attr("class", "axis axis--x");
 
-        //-----------------------------DATA-----------------------------//
-        const dataset = d3.csv("cereal.csv");
-        dataset.then(data => {
-            data.forEach(function (d) { // string to number 
-                d.Calories = +d.Calories;
-                d["Protein (g)"] = +d["Protein (g)"];
-            });
-            //----------------------------SCALES----------------------------//
+            g.append("g")
+                .attr("class", "axis axis--y");
 
-            const xScale = d3.scaleLinear()
-                .domain([d3.min(data, d => d.Calories - 2), d3.max(data, d => d.Calories + 1)])
-                .range([0, width])
 
-            const yScale = d3.scaleLinear()
-                .domain([d3.min(data, d => d["Protein (g)"] - 1), d3.max(data, d => d["Protein (g)"] + 1)])
-                .rangeRound([height - margin.bottom, margin.top])
+            d3.select("div#chartId")
+                .classed("svg-container", true) //container class to make it responsive
+                .classed("svg-content-responsive", true);
+
+            var bounds = svg.node().getBoundingClientRect()
+
+            width = bounds.width - margin.left - margin.right;
+            height = bounds.height - margin.top - margin.bottom;
+
             //-----------------------------AXES-----------------------------//
             const yaxis = d3.axisLeft()
                 .ticks()
@@ -60,12 +59,14 @@
 
             const xaxis = d3.axisBottom()
                 .scale(xScale)
-            //---------------------------TOOLTIP----------------------------//
-            //-------------------------2. DRAWING---------------------------//
+
+            xScale.range([0, width])
+            yScale.rangeRound([height, 0]);
+
             //-----------------------------AXES-----------------------------//
             svg.append("g")
                 .attr("class", "x axis")
-                .attr("transform", "translate(0" + "," + (height - margin.bottom) + ")")
+                .attr("transform", "translate(" + margin.left + "," + (height + margin.top) + ")")
                 .call(xaxis)
                 .append("text")
                 .attr("class", "label")
@@ -76,6 +77,7 @@
 
             svg.append("g")
                 .attr("class", "y axis")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
                 .call(yaxis)
                 .append("text")
                 .attr("class", "label")
@@ -85,22 +87,22 @@
                 .style("text-anchor", "end")
                 .text("Protein (g)");
 
-            //----------------------------PLOTS-----------------------------//
-
+            //----------------------------Plots-----------------------------//
             svg.selectAll(".dot")
-                .data(data)
+                .data(theData)
                 .enter().append("circle")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
                 .attr("class", "dot")
                 .attr("r", 3.5)
-                .attr("cx", d => xScale(d.Calories))
-                .attr("cy", d => yScale(d["Protein (g)"]))
-                .style("fill", function (d) { return color(d.Manufacturer) })
+                .attr("cx", d => xScale(d.calories))
+                .attr("cy", d => yScale(d.protein))
+                .style("fill", function (d) { return color(d.manufacturer) })
                 .on("mouseover", function (d) {
                     tooltip.transition()
                         .duration(200)
                         .style("opacity", .9);
-                    tooltip.html(d["Cereal Name"] + "<br/> (" + d.Calories
-                        + ", " + d["Protein (g)"] + ")")
+                    tooltip.html(d.id + "<br/> (" + d.calories
+                        + ", " + d.protein + ")")
                         .style("left", (d3.event.pageX + 5) + "px")
                         .style("top", (d3.event.pageY - 28) + "px");
                 })
@@ -110,18 +112,20 @@
                         .style("opacity", 0);
                 });
 
+
             //----------------------------GRIDS-----------------------------//
             svg.append("g")
                 .attr("stroke", "currentColor")
-                .attr("stroke-opacity", 0.1)
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                .attr("stroke-opacity", 0.2)
                 .call(g => g.append("g")
                     .selectAll("line")
                     .data(xScale.ticks())
                     .join("line")
                     .attr("x1", d => xScale(d))
                     .attr("x2", d => xScale(d))
-                    .attr("y1", margin.top)
-                    .attr("y2", height - margin.bottom))
+                    .attr("y1", 0)
+                    .attr("y2", height + margin.top))
                 .call(g => g.append("g")
                     .selectAll("line")
                     .data(yScale.ticks())
@@ -131,11 +135,82 @@
                     .attr("x1", 0)
                     .attr("x2", width));
 
+
             //----------------------------legend-----------------------------//
+            var legendData = d3.values(theData.map(function (d) { return d.manufacturer; }))
 
-            //---------------------------POINTS-----------------------------// 
+            var uniqueLegend = legendData.filter(function (elem, pos) {
+                return legendData.indexOf(elem) == pos;
+            })
 
-            //---------------------------EVENTS-----------------------------//
-        })
+            var legend = lsvg.selectAll(".legend")
+                .data(uniqueLegend)
+                .enter().append("g")
+                .attr("class", "legend")
+                .attr("transform", function (d, i) {
+                    return "translate(" + (i % 2 * 150 + 10) + "," + (Math.floor(i / 2) * 40 + 10) + ")";
+                })
+                .style("opacity", "0");
+
+            legend.append("rect")
+                .attr("width", 60)
+                .attr("height", 5)
+                .style("fill", function (d) { return color(d); });
+
+            legend.append("text")
+                .attr("x", 75)
+                .attr("y", 3)
+                .attr("dy", ".35em")
+                .style("text-anchor", "start")
+                .text(function (d) { return d; });
+
+            legend.style("opacity", "1");
+
+
+        }
+        //-----------------------------DATA-----------------------------//
+        function loadData(tsvFile) {
+            const timeConv = d3.timeParse("%d-%b-%Y");
+            // const dataset = d3.csv("more_data.csv");
+
+            const url = "https://script.google.com/a/macros/sph.com.sg/s/AKfycbwVjgt__c_7WUT0jv4UtfPlEcBHx8h2PnXgg_aCWHEGEzLNXHJWg84jmI6Ou0uBycBjrA/exec"
+            $.getJSON(url + "?callback=?",
+                { method: "scatter" },
+                function (data) {
+                    var header = data[0];
+                    var calorIndex = header.indexOf("Calories");
+                    var proteinIndex = header.indexOf("Protein (g)");
+                    var manufacturerIndex = header.indexOf("Manufacturer")
+                    var slices = data.slice(1).map(function (id, x) {
+                        return {
+                            id: id[0],
+                            calories: id[calorIndex],
+                            protein: id[proteinIndex],
+                            manufacturer: id[manufacturerIndex]
+
+                        };
+                    });
+
+                    theData = slices;
+
+                    //----------------------------SCALES----------------------------//
+
+                    xScale.domain([d3.min(theData, d => d.calories - 2), d3.max(theData, d => d.calories + 1)])
+
+                    yScale.domain([d3.min(theData, d => d.protein - 1), d3.max(theData, d => d.protein + 1)])
+
+                    draw();
+                });
+
+
+        }
+
+        function resizeDraw() {
+            d3.selectAll("svg").remove();
+            draw();
+        }
+
+        window.addEventListener("resize", resizeDraw);
+        loadData();
     </script>
 </body>

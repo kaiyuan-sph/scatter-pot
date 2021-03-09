@@ -18,3 +18,8 @@ body {
     height: 28px;
     pointer-events: none;
 }
+
+#legend {
+    width: 320px;
+    margin: auto;
+}
